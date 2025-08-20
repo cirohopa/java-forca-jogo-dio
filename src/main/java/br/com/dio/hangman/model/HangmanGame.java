@@ -5,7 +5,6 @@ import br.com.dio.hangman.exception.LetterAlreadyInputedException;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
 
 import static br.com.dio.hangman.model.HangmanGameStatus.*;
 
@@ -13,13 +12,13 @@ public class HangmanGame {
 
     //Array com as etapas do desenho da forca
     private static final String[] HANGMAN_STAGES = {
-            "  _____  \n  |   |  \n  |   |  \n  |      \n  |      \n  |      \n  |      \n=========", // 0 erros
-            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |      \n  |      \n  |      \n=========", // 1 erro
-            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |   |  \n  |      \n  |      \n=========", // 2 erros
-            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |  /|  \n  |      \n  |      \n=========", // 3 erros
-            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |  /|\\\n  |      \n  |      \n=========", // 4 erros
-            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |  /|\\\n  |  /   \n  |      \n=========", // 5 erros
-            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |  /|\\\n  |  / \\\n  |      \n========="  // 6 erros (derrota)
+            "  _____  \n  |   |  \n  |   |  \n  |      \n  |      \n  |      \n  |      \n=========",
+            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |      \n  |      \n  |      \n=========",
+            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |   |  \n  |      \n  |      \n=========",
+            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |  /|  \n  |      \n  |      \n=========",
+            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |  /|\\\n  |      \n  |      \n=========",
+            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |  /|\\\n  |  /   \n  |      \n=========",
+            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |  /|\\\n  |  / \\\n  |      \n========="
     };
 
     private final List<HangmanChar> characters;
@@ -31,24 +30,26 @@ public class HangmanGame {
         this.hangmanGameStatus = PENDING;
     }
 
+    public HangmanGameStatus getHangmanGameStatus() {
+        return hangmanGameStatus;
+    }
+
     public void inputCharacter(final char character){
         if (this.hangmanGameStatus != PENDING){
             var message = this.hangmanGameStatus == WIN ?
-                    "Parabéns! Você ganhou" : "Você perdeu! Tente de novo";
+                    "Parabens! Voce ganhou" : "Voce perdeu! Tente de novo";
             throw new GameIsFinishedException(message);
         }
 
-        // 2. Verifica se a letra já foi tentada (seja errada ou certa)
+        //Verifica se a letra já foi tentada (seja errada ou certa)
         boolean alreadyTriedAsFail = failAttempts.contains(character);
         boolean alreadyTriedAsSuccess = characters.stream()
                 .anyMatch(c -> c.getCharacter() == character && c.isVisible());
 
         if (alreadyTriedAsFail || alreadyTriedAsSuccess) {
-            // Lança a exceção AQUI
             throw new LetterAlreadyInputedException("A letra '" + character + "' ja foi digitada.");
         }
 
-        // 3. Processa a nova letra
         var found = this.characters.stream()
                 .filter(c -> c.getCharacter() == character)
                 .toList();
@@ -60,37 +61,31 @@ public class HangmanGame {
                 this.hangmanGameStatus = LOSE;
             }
         } else { // Se encontrou a letra, é uma tentativa correta
-            // Torna a letra visível
             this.characters.forEach(c -> {
                 if (c.getCharacter() == character) {
                     c.enableVisibility();
                 }
             });
 
-            // Verifica se o jogador ganhou
             if (this.characters.stream().noneMatch(HangmanChar::isInvisible)) {
                 this.hangmanGameStatus = WIN;
             }
         }
     }
 
-    // Substitua o toString antigo por este:
     @Override
     public String toString() {
-        // 1. Pega o desenho da forca correspondente ao número de erros
+        //Desenho da forca correspondente ao número de erros
         String hangmanDrawing = HANGMAN_STAGES[failAttempts.size()];
 
-        // 2. Constrói a string da palavra (ex: "t e s t e")
         StringBuilder wordDisplay = new StringBuilder();
         for (HangmanChar c : this.characters) {
             wordDisplay.append(c.isInvisible() ? "_" : c.getCharacter());
-            wordDisplay.append(" "); // Adiciona um espaço entre as letras
+            wordDisplay.append(" ");
         }
 
-        // 3. Constrói a string de tentativas erradas
         String failsDisplay = "Tentativas erradas: " + failAttempts.toString();
 
-        // 4. Combina tudo em uma única string de saída
         return hangmanDrawing + "\n\n" + wordDisplay + "\n\n" + failsDisplay;
     }
 
