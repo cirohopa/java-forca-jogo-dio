@@ -17,13 +17,19 @@ public class Main {
         System.out.println(hangmanGame);
         hangmanGame.inputCharacter('t');
         System.out.println(hangmanGame);
-        hangmanGame.inputCharacter('e');
-        System.out.println(hangmanGame);
-        hangmanGame.inputCharacter('s');
-        System.out.println(hangmanGame);
         hangmanGame.inputCharacter('t');
         System.out.println(hangmanGame);
-        hangmanGame.inputCharacter('e');
+        hangmanGame.inputCharacter('a');
+        System.out.println(hangmanGame);
+        hangmanGame.inputCharacter('d');
+        System.out.println(hangmanGame);
+        hangmanGame.inputCharacter('f');
+        System.out.println(hangmanGame);
+        hangmanGame.inputCharacter('g');
+        System.out.println(hangmanGame);
+        hangmanGame.inputCharacter('h');
+        System.out.println(hangmanGame);
+        hangmanGame.inputCharacter('i');
 
     }
 }

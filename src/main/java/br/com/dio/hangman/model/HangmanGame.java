@@ -1,6 +1,7 @@
 package br.com.dio.hangman.model;
 
 import br.com.dio.hangman.exception.GameIsFinishedException;
+import br.com.dio.hangman.exception.LetterAlreadyInputedException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,116 +11,87 @@ import static br.com.dio.hangman.model.HangmanGameStatus.*;
 
 public class HangmanGame {
 
-    private final static int HANGMAN_INITIAL_LINE_LENGHT = 9;
-    private final static int HANGMAN_INITIAL_LINE_LENGHT_WITH_LINE_SEPARATOR = 10;
+    //Array com as etapas do desenho da forca
+    private static final String[] HANGMAN_STAGES = {
+            "  _____  \n  |   |  \n  |   |  \n  |      \n  |      \n  |      \n  |      \n=========", // 0 erros
+            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |      \n  |      \n  |      \n=========", // 1 erro
+            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |   |  \n  |      \n  |      \n=========", // 2 erros
+            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |  /|  \n  |      \n  |      \n=========", // 3 erros
+            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |  /|\\\n  |      \n  |      \n=========", // 4 erros
+            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |  /|\\\n  |  /   \n  |      \n=========", // 5 erros
+            "  _____  \n  |   |  \n  |   |  \n  |   O  \n  |  /|\\\n  |  / \\\n  |      \n========="  // 6 erros (derrota)
+    };
 
-    private final int lineSize;
-    private final int hangmanInitialSize;
-    private final List<HangmanChar> hangmanPaths;
     private final List<HangmanChar> characters;
     private final List<Character> failAttempts = new ArrayList<>();
-
-    private String hangman;
     private HangmanGameStatus hangmanGameStatus;
 
     public HangmanGame(final List<HangmanChar> characters) {
-        var whiteSpaces = " ".repeat(characters.size());
-        var characterSpace = "-".repeat(characters.size());
-        this.lineSize = HANGMAN_INITIAL_LINE_LENGHT_WITH_LINE_SEPARATOR + whiteSpaces.length();
+        this.characters = characters;
         this.hangmanGameStatus = PENDING;
-        this.hangmanPaths = buildHangmanPathsPositions();
-        buildHangmanDesign(whiteSpaces, characterSpace);
-        this.characters = setCharacterSpacesPositionInGame(characters, whiteSpaces.length());
-        this.hangmanInitialSize = hangman.length();
     }
 
     public void inputCharacter(final char character){
         if (this.hangmanGameStatus != PENDING){
             var message = this.hangmanGameStatus == WIN ?
-                    "Parabéns! Você ganhou" : "Você pedeu! Tente de novo";
-                    throw new GameIsFinishedException(message);
+                    "Parabéns! Você ganhou" : "Você perdeu! Tente de novo";
+            throw new GameIsFinishedException(message);
         }
 
+        // 2. Verifica se a letra já foi tentada (seja errada ou certa)
+        boolean alreadyTriedAsFail = failAttempts.contains(character);
+        boolean alreadyTriedAsSuccess = characters.stream()
+                .anyMatch(c -> c.getCharacter() == character && c.isVisible());
+
+        if (alreadyTriedAsFail || alreadyTriedAsSuccess) {
+            // Lança a exceção AQUI
+            throw new LetterAlreadyInputedException("A letra '" + character + "' ja foi digitada.");
+        }
+
+        // 3. Processa a nova letra
         var found = this.characters.stream()
                 .filter(c -> c.getCharacter() == character)
                 .toList();
 
-        if (found.isEmpty()){
+        // Se não encontrou a letra, é uma tentativa errada
+        if (found.isEmpty()) {
             failAttempts.add(character);
-            if(failAttempts.size() >= 6){
+            if (failAttempts.size() >= 6) { // Usar 6 em vez de HANGMAN_STAGES.length-1 para evitar quebra se o array mudar
                 this.hangmanGameStatus = LOSE;
             }
+        } else { // Se encontrou a letra, é uma tentativa correta
+            // Torna a letra visível
+            this.characters.forEach(c -> {
+                if (c.getCharacter() == character) {
+                    c.enableVisibility();
+                }
+            });
 
-            rebuildHangman(this.hangmanPaths.removeFirst());
-            return;
-        }
-
-        this.characters.forEach(c -> {
-            if (c.getCharacter() == found.getFirst().getCharacter()){
-                c.enableVisibility();
+            // Verifica se o jogador ganhou
+            if (this.characters.stream().noneMatch(HangmanChar::isInvisible)) {
+                this.hangmanGameStatus = WIN;
             }
-        });
-
-        if (this.characters.stream().noneMatch(HangmanChar::isInvisible)){
-            this.hangmanGameStatus = WIN;
         }
-
-        rebuildHangman(found.toArray(HangmanChar[]::new));
     }
 
+    // Substitua o toString antigo por este:
     @Override
     public String toString() {
-        return this.hangman;
-    }
+        // 1. Pega o desenho da forca correspondente ao número de erros
+        String hangmanDrawing = HANGMAN_STAGES[failAttempts.size()];
 
-    private List<HangmanChar> buildHangmanPathsPositions(){
-        final var HEAD_LINE = 3;
-        final var BODY_LINE = 4;
-        final var LEGS_LINE = 5;
-        return new ArrayList<>(
-                List.of(
-                        new HangmanChar('0', this.lineSize*HEAD_LINE + 6),
-                        new HangmanChar('|', this.lineSize * BODY_LINE + 6),
-                        new HangmanChar('/', this.lineSize * BODY_LINE + 5),
-                        new HangmanChar('\\', this.lineSize * BODY_LINE + 7),
-                        new HangmanChar('/', this.lineSize * LEGS_LINE + 5),
-                        new HangmanChar('\\', this.lineSize * LEGS_LINE + 7)
-
-                        )
-        );
-    }
-
-    private List<HangmanChar> setCharacterSpacesPositionInGame(final List<HangmanChar> characters, final int whiteSpacesAmount) {
-        final var LINE_LETTER = 6;
-
-        for (int i = 0; i < characters.size(); i++) {
-            characters.get(i).setPosition(this.lineSize);
+        // 2. Constrói a string da palavra (ex: "t e s t e")
+        StringBuilder wordDisplay = new StringBuilder();
+        for (HangmanChar c : this.characters) {
+            wordDisplay.append(c.isInvisible() ? "_" : c.getCharacter());
+            wordDisplay.append(" "); // Adiciona um espaço entre as letras
         }
 
-        return characters;
+        // 3. Constrói a string de tentativas erradas
+        String failsDisplay = "Tentativas erradas: " + failAttempts.toString();
+
+        // 4. Combina tudo em uma única string de saída
+        return hangmanDrawing + "\n\n" + wordDisplay + "\n\n" + failsDisplay;
     }
 
-    private void rebuildHangman(final HangmanChar... hangmanChars){
-        var hangmanBuilder = new StringBuilder(this.hangman);
-        Stream.of(hangmanChars).forEach(
-                h -> hangmanBuilder.setCharAt(
-                        h.getPosition(), h.getCharacter()));
-
-        var failMessage = this.failAttempts.isEmpty() ? "" : "Tentativas: " + this.failAttempts;
-        this.hangman = hangmanBuilder.substring(0, hangmanInitialSize) + failMessage;
-    }
-
-    private void buildHangmanDesign(final String whiteSpaces, final String characterSpaces){
-        this.hangman =
-                  "  _____  " + whiteSpaces + System.lineSeparator() +
-                  "  |   |  " + whiteSpaces + System.lineSeparator() +
-                  "  |   |  " + whiteSpaces + System.lineSeparator() +
-                  "  |      " + whiteSpaces + System.lineSeparator() +
-                  "  |      " + whiteSpaces + System.lineSeparator() +
-                  "  |      " + whiteSpaces + System.lineSeparator() +
-                  "  |      " + whiteSpaces + System.lineSeparator() +
-                  "=========" + characterSpaces + System.lineSeparator();
-
-        ;
-    }
 }
